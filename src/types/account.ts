@@ -38,6 +38,44 @@ export interface Income {
   receivedDate: string
 }
 
+export interface PurchaseItem {
+  id?: string
+  description: string
+  quantity?: number
+  unitPrice?: number
+  totalValue?: number
+}
+
+export interface Purchase {
+  id: string
+  supplierName: string
+  totalValue: number
+  purchaseDate: string
+  items: PurchaseItem[]
+  hasNoteImage: boolean
+  noteText?: string
+  rawText?: string
+  createdAt?: string
+}
+
+export interface PurchaseDraft {
+  supplierName: string
+  totalValue: number
+  purchaseDate: string
+  noteImage?: File
+}
+
+export interface PurchaseSummary {
+  month: string
+  purchases: number
+  totalValue: number
+}
+
+export interface PurchaseReport {
+  totalValue: number
+  bySupplier: { supplierName: string; totalValue: number }[]
+}
+
 export interface Balance {
   incomes: number
   expenses: number

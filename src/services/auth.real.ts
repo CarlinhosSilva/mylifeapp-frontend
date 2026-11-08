@@ -1,4 +1,4 @@
-import type { Category, Account, Balance, FamilySummary, FinancialStatus, Income, MonthlySummary, PaymentData } from '../types/account'
+import type { Category, Account, Balance, FamilySummary, FinancialStatus, Income, MonthlySummary, PaymentData, Purchase, PurchaseReport, PurchaseSummary, PurchaseDraft } from '../types/account'
 import type { AuthUser, User, LoginCredentials, SignUpCredentials, UpdateUserPayload } from '../types/auth'
 
 export async function loginWithRealApi(credentials: LoginCredentials): Promise<AuthUser> {
@@ -251,6 +251,85 @@ export async function getFamilySummaryWithRealApi(token: string): Promise<Family
 
   if (!response.ok) throw new Error('Erro ao buscar movimentação familiar')
   return response.json() as Promise<FamilySummary>
+}
+
+export async function getPurchasesWithRealApi(token: string): Promise<Purchase[]> {
+  const response = await fetch('/api/purchases', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (!response.ok) throw new Error('Erro ao buscar compras')
+  return response.json() as Promise<Purchase[]>
+}
+
+export async function createPurchaseWithRealApi(purchase: PurchaseDraft, token: string): Promise<Purchase> {
+  const formData = new FormData()
+  formData.append('supplierName', purchase.supplierName)
+  formData.append('totalValue', purchase.totalValue.toFixed(2))
+  formData.append('purchaseDate', purchase.purchaseDate)
+  if (purchase.noteImage) {
+    formData.append('note', purchase.noteImage)
+  }
+
+  const response = await fetch('/api/purchases', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.error || 'Erro ao criar compra')
+  }
+
+  return response.json() as Promise<Purchase>
+}
+
+export async function getPurchaseNoteImageWithRealApi(id: string, token: string): Promise<Blob> {
+  const response = await fetch(`/api/purchases/${id}/note`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.error || 'Não foi possível abrir a imagem da nota')
+  }
+
+  return response.blob()
+}
+
+export async function deletePurchaseWithRealApi(id: string, token: string): Promise<void> {
+  const response = await fetch(`/api/purchases/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.error || 'Erro ao excluir compra')
+  }
+}
+
+export async function getPurchaseMonthlySummaryWithRealApi(token: string): Promise<PurchaseSummary[]> {
+  const response = await fetch('/api/purchases/monthly-summary', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (!response.ok) throw new Error('Erro ao buscar resumo de compras')
+  return response.json() as Promise<PurchaseSummary[]>
+}
+
+export async function getPurchaseReportWithRealApi(token: string): Promise<PurchaseReport> {
+  const response = await fetch('/api/purchases/report', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (!response.ok) throw new Error('Erro ao buscar relatório de compras')
+  return response.json() as Promise<PurchaseReport>
 }
 
 export async function getFinancialStatusWithRealApi(token: string, family = false): Promise<FinancialStatus> {

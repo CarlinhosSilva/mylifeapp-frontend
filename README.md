@@ -39,6 +39,41 @@ npm run preview
 - Visão Família com movimentações de todos os usuários, saldo agregado e status geral.
 - Visão Usuários com filtro de usuário e mês, usando o mesmo painel financeiro da família.
 - Badges no header indicando se o usuário e a família possuem meses pendentes para revisão.
+- Módulo de compras com OCR para sugerir fornecedor, data e valor e opção de anexar a imagem da nota.
+
+## Módulo de compras
+
+O módulo de compras foi implementado como parte do fluxo financeiro, sem criar controle de estoque real. A imagem pode sugerir fornecedor, data e valor via OCR; os campos são editáveis e a imagem é opcional para consulta posterior.
+
+### Como funciona
+
+1. O usuário acessa a aba de compras no painel principal.
+2. Opcionalmente, envia uma imagem para sugerir fornecedor, data e valor por OCR.
+3. Confere e ajusta manualmente fornecedor, data e valor total.
+4. Salva a compra; imagens JPG, PNG ou WEBP de até 8 MB são aceitas quando anexadas.
+5. O histórico permite visualizar a imagem salva da nota, quando houver.
+
+### Observações importantes
+
+- O OCR usa Tesseract.js no navegador e um parser heurístico. Pode falhar ou sugerir dados incorretos; confira fornecedor, data e valor antes de salvar. Os campos também podem ser preenchidos manualmente.
+- Para dados fiscais eletrônicos, o XML da NF-e/NFC-e é preferível quando o usuário consegue obtê-lo: os campos são estruturados, ao contrário do OCR de uma foto. A importação de XML ainda não está implementada.
+- Como alternativa para fotos, serviços como [Azure Document Intelligence (modelo de recibos)](https://learn.microsoft.com/azure/ai-services/document-intelligence/prebuilt/receipt) oferecem extração estruturada. Antes de integrar qualquer serviço, teste notas brasileiras reais e avalie custos, suporte ao formato/localidade e privacidade: a imagem da compra será enviada ao provedor.
+- A imagem é armazenada no PostgreSQL e servida por uma rota autenticada que verifica o usuário dono da compra.
+- O módulo foi desenhado para controle financeiro, não para inventário; ele não acompanha estoque real nem movimentação de produtos.
+- O valor total da compra entra no fluxo mensal do usuário e da família como saída financeira.
+
+### Teste manual recomendado
+
+1. Inicie o backend e o frontend.
+2. Faça login no sistema.
+3. Acesse a aba de compras.
+4. Opcionalmente, anexe uma imagem de nota fiscal e confira os dados sugeridos.
+5. Preencha ou corrija fornecedor, data e valor total.
+6. Salve a compra.
+7. Verifique:
+   - o total do mês
+   - a lista por fornecedor
+   - a compra no histórico e o botão para visualizar a nota salva
 
 ## Formatos de dados
 

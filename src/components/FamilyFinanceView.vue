@@ -36,7 +36,7 @@ const filteredSummary = computed(() => {
     const current = days.get(day) ?? { day, incomes: 0, expenses: 0, pending: 0 }
     if (transaction.type === 'INCOME') current.incomes += transaction.value
     else if (transaction.type === 'PAYMENT') current.expenses += transaction.value
-    else current.pending += transaction.value
+    else current.pending = (current.pending ?? 0) + transaction.value
     days.set(day, current)
   }
 

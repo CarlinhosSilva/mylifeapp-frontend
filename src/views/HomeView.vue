@@ -3,14 +3,14 @@ import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import Button from 'primevue/button'
-import { updateUserProfile, getUsers, getCategories, updateAccountApi, getAccountsApi, createAccountsApi, deleteAccountApi, payAccountApi, getIncomesApi, createIncomeApi, getBalanceApi, getMonthlySummaryApi } from '../services/auth'
+import { updateUserProfile, getUsers, getCategories, updateAccountApi, getAccountsApi, createAccountsApi, deleteAccountApi, payAccountApi, getIncomesApi, createIncomeApi, getBalanceApi, getMonthlySummaryApi, getPurchasesApi, createPurchaseApi, deletePurchaseApi, getPurchaseReportApi } from '../services/auth'
 import { getFamilySummaryApi, getFinancialStatusApi } from '../services/auth'
 import logo from '../assets/family-logo.svg'
 import UserSettingsModal from '../components/UserSettingsModal.vue'
 import AccountDialog from '../components/AccountDialog.vue'
 import AccountList from '../components/AccountList.vue'
 import type { User } from '../types/auth'
-import type { Account, Balance, Category, Income, MonthlySummary } from '../types/account.ts'
+import type { Account, Balance, Category, Income, MonthlySummary, Purchase, PurchaseDraft, PurchaseReport } from '../types/account.ts'
 import type { FamilySummary, FinancialStatus } from '../types/account.ts'
 import type { PaymentData } from '../types/account.ts'
 import DeleteAccountDialog from '../components/DeleteAccountDialog.vue'
@@ -19,6 +19,7 @@ import IncomeDialog from '../components/IncomeDialog.vue'
 import IncomeList from '../components/IncomeList.vue'
 import MonthlyFinanceChart from '../components/MonthlyFinanceChart.vue'
 import FamilyFinanceView from '../components/FamilyFinanceView.vue'
+import PurchaseScanner from '../components/PurchaseScanner.vue'
 import { formatDateToBR } from '../composables/date'
 
 const router = useRouter()
@@ -39,8 +40,11 @@ const showDeleteDialog = ref(false)
 const showPaymentDialog = ref(false)
 const showIncomeDialog = ref(false)
 const incomes = ref<Income[]>([])
+const purchases = ref<Purchase[]>([])
+const purchaseReport = ref<PurchaseReport>({ totalValue: 0, bySupplier: [] })
+const purchaseRefreshWarning = ref('')
 const balance = ref<Balance>({ incomes: 0, expenses: 0, balance: 0 })
-const activeView = ref<'overview' | 'accounts' | 'incomes' | 'users' | 'family'>('overview')
+const activeView = ref<'overview' | 'accounts' | 'incomes' | 'purchases' | 'users' | 'family'>('overview')
 const monthlySummary = ref<MonthlySummary[]>([])
 const familySummary = ref<FamilySummary | null>(null)
 const incomeError = ref('')
@@ -87,6 +91,8 @@ onMounted(async () => {
   categories.value = await getCategories(token)
   accounts.value = await getAccountsApi(token)
   incomes.value = await getIncomesApi(token)
+  purchases.value = await getPurchasesApi(token)
+  purchaseReport.value = await getPurchaseReportApi(token)
   balance.value = await getBalanceApi(token)
   monthlySummary.value = await getMonthlySummaryApi(token)
   familySummary.value = await getFamilySummaryApi(token)
@@ -211,6 +217,47 @@ async function saveIncome(income: Omit<Income, 'id'>) {
   }
 }
 
+async function savePurchase(purchase: PurchaseDraft) {
+  const token = auth.getToken()
+  if (!token) throw new Error('Sua sessão expirou. Entre novamente para salvar a compra.')
+
+  const createdPurchase = await createPurchaseApi(purchase, token)
+  purchases.value = [createdPurchase, ...purchases.value.filter(item => item.id !== createdPurchase.id)]
+  purchaseRefreshWarning.value = ''
+  activeView.value = 'purchases'
+
+  try {
+    purchaseReport.value = await getPurchaseReportApi(token)
+    balance.value = await getBalanceApi(token)
+    monthlySummary.value = await getMonthlySummaryApi(token)
+    familySummary.value = await getFamilySummaryApi(token)
+    await refreshFinancialStatuses(token)
+  } catch (error) {
+    console.error(error)
+    purchaseRefreshWarning.value = 'A compra e a nota foram salvas, mas não foi possível atualizar todos os resumos. Atualize a página para sincronizar.'
+  }
+}
+
+async function removePurchase(purchase: Purchase) {
+  const token = auth.getToken()
+  if (!token) return
+
+  const confirmed = window.confirm(`Deseja excluir a compra de ${purchase.supplierName} no valor de ${formatCurrency(purchase.totalValue)}?`)
+  if (!confirmed) return
+
+  try {
+    await deletePurchaseApi(purchase.id, token)
+    purchases.value = purchases.value.filter(item => item.id !== purchase.id)
+    purchaseReport.value = await getPurchaseReportApi(token)
+    balance.value = await getBalanceApi(token)
+    monthlySummary.value = await getMonthlySummaryApi(token)
+    familySummary.value = await getFamilySummaryApi(token)
+    await refreshFinancialStatuses(token)
+  } catch (error) {
+    console.error(error)
+  }
+}
+
 function newAccount() {
   selectedAccount.value = null
   showAccountDialog.value = true
@@ -308,6 +355,10 @@ async function updateAccount(updatedAccount: Account) {
           <i class="pi pi-arrow-down-left"></i>
           Receitas
         </button>
+        <button class="nav-item" :class="{ active: activeView === 'purchases' }" @click="activeView = 'purchases'">
+          <i class="pi pi-camera"></i>
+          Compras
+        </button>
         <button class="nav-item" :class="{ active: activeView === 'users' }" @click="activeView = 'users'">
           <i class="pi pi-users"></i>
           Usuários
@@ -387,6 +438,32 @@ async function updateAccount(updatedAccount: Account) {
         
         </div>
 
+        <div v-else-if="activeView === 'purchases'" class="placeholder-card feature-card">
+          <div class="account-header">
+            <h2>Compras do mês</h2>
+          </div>
+
+          <PurchaseScanner :purchases="purchases" :save-purchase="savePurchase" @delete="removePurchase" />
+          <p v-if="purchaseRefreshWarning" class="purchase-refresh-warning" role="status">{{ purchaseRefreshWarning }}</p>
+
+          <div v-if="purchaseReport.bySupplier.length" class="purchase-report">
+            <div class="report-box">
+              <h3>Resumo financeiro</h3>
+              <p>Total gasto: <strong>{{ formatCurrency(purchaseReport.totalValue) }}</strong></p>
+            </div>
+
+            <div class="report-box">
+              <h3>Por fornecedor</h3>
+              <ul>
+                <li v-for="entry in purchaseReport.bySupplier" :key="entry.supplierName">
+                  {{ entry.supplierName }} — {{ formatCurrency(entry.totalValue) }}
+                </li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+
         <div v-else-if="activeView === 'users'" class="placeholder-card feature-card">
           <FamilyFinanceView
             v-if="familySummary"
@@ -448,6 +525,33 @@ button {
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   cursor: pointer;
+}
+
+.purchase-report {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.purchase-refresh-warning {
+  margin: 12px 0 0;
+  color: #92400e;
+  font-size: 14px;
+}
+
+.report-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.report-box ul {
+  margin: 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 8px;
 }
 
 .user-menu {

@@ -1,6 +1,6 @@
-import type { Category, Account, Balance, FamilySummary, FinancialStatus, Income, MonthlySummary, PaymentData } from '../types/account'
+import type { Category, Account, Balance, FamilySummary, FinancialStatus, Income, MonthlySummary, PaymentData, Purchase, PurchaseDraft, PurchaseReport, PurchaseSummary } from '../types/account'
 import type { AuthUser, LoginCredentials, SignUpCredentials, UpdateUserPayload, User } from '../types/auth'
-import { loginWithRealApi, signUpWithRealApi, updateProfileWithRealApi, getUsersWithRealApi, getCategoriesWithRealApi, updateAccountsWithRealApi, getAccountsWithRealApi, createAccountsWithRealApi, deleteAccountWithRealApi, payAccountWithRealApi, getIncomesWithRealApi, createIncomeWithRealApi, getBalanceWithRealApi, getMonthlySummaryWithRealApi, getFamilySummaryWithRealApi, getFinancialStatusWithRealApi } from './auth.real'
+import { loginWithRealApi, signUpWithRealApi, updateProfileWithRealApi, getUsersWithRealApi, getCategoriesWithRealApi, updateAccountsWithRealApi, getAccountsWithRealApi, createAccountsWithRealApi, deleteAccountWithRealApi, payAccountWithRealApi, getIncomesWithRealApi, createIncomeWithRealApi, getBalanceWithRealApi, getMonthlySummaryWithRealApi, getFamilySummaryWithRealApi, getFinancialStatusWithRealApi, getPurchasesWithRealApi, createPurchaseWithRealApi, deletePurchaseWithRealApi, getPurchaseMonthlySummaryWithRealApi, getPurchaseReportWithRealApi, getPurchaseNoteImageWithRealApi } from './auth.real'
 
 export async function loginUser(credentials: LoginCredentials): Promise<AuthUser> {
   return loginWithRealApi(credentials)
@@ -62,7 +62,30 @@ export async function getFamilySummaryApi(token: string): Promise<FamilySummary>
   return getFamilySummaryWithRealApi(token)
 }
 
+export async function getPurchasesApi(token: string): Promise<Purchase[]> {
+  return getPurchasesWithRealApi(token)
+}
+
+export async function createPurchaseApi(purchase: PurchaseDraft, token: string): Promise<Purchase> {
+  return createPurchaseWithRealApi(purchase, token)
+}
+
+export async function getPurchaseNoteImageApi(id: string, token: string): Promise<Blob> {
+  return getPurchaseNoteImageWithRealApi(id, token)
+}
+
+export async function deletePurchaseApi(id: string, token: string): Promise<void> {
+  return deletePurchaseWithRealApi(id, token)
+}
+
+export async function getPurchaseMonthlySummaryApi(token: string): Promise<PurchaseSummary[]> {
+  return getPurchaseMonthlySummaryWithRealApi(token)
+}
+
+export async function getPurchaseReportApi(token: string): Promise<PurchaseReport> {
+  return getPurchaseReportWithRealApi(token)
+}
+
 export async function getFinancialStatusApi(token: string, family = false): Promise<FinancialStatus> {
   return getFinancialStatusWithRealApi(token, family)
 }
-

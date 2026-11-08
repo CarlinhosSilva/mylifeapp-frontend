@@ -8,17 +8,23 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(safeValue)
 }
 
-function safeValue(value: number | undefined) {
-  return Number.isFinite(value) ? value : 0
+function safeValue(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
 function maxValue() {
-  return Math.max(...props.data.flatMap(item => [safeValue(item.incomes), safeValue(item.expenses), safeValue(item.pending)]), 1)
+  const values = props.data.flatMap(item => [
+    safeValue(item.incomes),
+    safeValue(item.expenses),
+    safeValue(item.pending),
+  ])
+  return Math.max(...values, 1)
 }
 
 function barHeight(value: number | undefined) {
   const normalizedValue = safeValue(value)
-  return `${Math.max((normalizedValue / maxValue()) * 100, normalizedValue ? 4 : 0)}%`
+  const height = Math.max((normalizedValue / maxValue()) * 100, normalizedValue ? 4 : 0)
+  return `${height}%`
 }
 </script>
 
@@ -38,7 +44,7 @@ function barHeight(value: number | undefined) {
 
     <div v-if="props.data.length" class="chart" aria-label="Gráfico de receitas, contas pagas e pendentes">
       <div v-for="item in props.data" :key="item.day" class="chart-day">
-        <div class="bars" :title="`${item.day}: ${formatCurrency(item.incomes)} em entradas, ${formatCurrency(item.expenses)} pagos e ${formatCurrency(item.pending)} pendentes`">
+        <div class="bars" :title="`${item.day}: ${formatCurrency(safeValue(item.incomes))} em entradas, ${formatCurrency(safeValue(item.expenses))} pagos e ${formatCurrency(safeValue(item.pending))} pendentes`">
           <span class="bar income-bar" :style="{ height: barHeight(item.incomes) }"></span>
           <span class="bar expense-bar" :style="{ height: barHeight(item.expenses) }"></span>
           <span class="bar pending-bar" :style="{ height: barHeight(item.pending) }"></span>
